@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 from fhir.resources.patient import Patient
 from fhir.resources.humanname import HumanName
 from fhir.resources.address import Address
+from fhir.resources.encounter import Encounter
+from fhir.resources.period import Period
+from fhir.resources.coding import Coding
+from fhir.resources.codeableconcept import CodeableConcept
+from fhir.resources.reference import Reference
 
 # Load .env relative to this file so it works regardless of the working directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -21,8 +26,8 @@ RAW_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "raw")
 TABLE_SCHEMAS = {
     "patients": """
         Id STRING, BIRTHDATE DATE, DEATHDATE DATE, SSN STRING,
-        DRIVERS STRING, PASSPORT STRING, PREFIX STRING, FIRST STRING,
-        LAST STRING, SUFFIX STRING, MAIDEN STRING, MARITAL STRING,
+        DRIVERS STRING, PASSPORT STRING, PREFIX STRING, "FIRST" STRING,
+        "LAST" STRING, SUFFIX STRING, MAIDEN STRING, MARITAL STRING,
         RACE STRING, ETHNICITY STRING, GENDER STRING, BIRTHPLACE STRING,
         ADDRESS STRING, CITY STRING, STATE STRING, COUNTY STRING, ZIP STRING,
         LAT FLOAT, LON FLOAT, HEALTHCARE_EXPENSES FLOAT, HEALTHCARE_COVERAGE FLOAT
@@ -117,7 +122,7 @@ def s3_to_snowflake_raw(context: AssetExecutionContext) -> str:
 @asset(deps=[s3_to_snowflake_raw],group_name = "fhir_standardization")
 def generate_fhir_patients(context: AssetExecutionContext) -> str:
     """
-    Step3: Extracts raw database records from snowflake, maps them to strict
+    Step3: Extracts raw patient database records from snowflake, maps them to strict
     HL7 FHIR R4 JSON structures, and saves them to AWS s3
     """ 
     #1. Connect to snowflake to read the raw inputs
@@ -140,7 +145,7 @@ def generate_fhir_patients(context: AssetExecutionContext) -> str:
 
     #Grab a smaple of 100 patients to test the transforamtion loop
     context.log.info("Fetching raw patient data from snowflake")
-    cs.execute("SELECT ID, FIRST, LAST, GENDER, BIRTHDATE, CITY, STATE FROM raw.patients LIMIT 100")
+    cs.execute('SELECT ID, "FIRST", "LAST", GENDER, BIRTHDATE, CITY, STATE FROM raw.patients LIMIT 100')
     rows =cs.fetchall()
     cs.close()
     ctx.close()
@@ -154,30 +159,16 @@ def generate_fhir_patients(context: AssetExecutionContext) -> str:
         p_id, first_name, last_name, gender, birthdate, city, state = row
 
         try:
-            #3. Construct a strictly compliant FHIR patient resource using python models
-            fhir_patient= Patient()
-            fhir_patient.id = str(p_id)
-            # fhir_patient.resourceType = "Patient"
-            fhir_patient.active =True
-            fhir_patient.birthDate = birthdate.strftime("%Y-%m-%d")if birthdate else None
-            fhir_patient.gender = gender.lower()
-
-        #Construct complex nested human name
-            name = HumanName()
-            name.use = "official"
-            name.family = last_name
-            name.given = [first_name]
-            fhir_patient.name = [name]
-        
-        # Construct complex nested address
-            addr = Address()
-            addr.use = "home"
-            addr.city = city
-            addr.state = state
-            fhir_patient.address = [addr]
-        
-        # Convert the strict object into a standard Python Dictionary/JSON string
-            patient_json = fhir_patient.json(indent=2)
+            # Pass all fields at construction — Pydantic v2 validates on __init__
+            fhir_patient = Patient(
+                id=str(p_id),
+                active=True,
+                birthDate=birthdate.strftime("%Y-%m-%d") if birthdate else None,
+                gender=gender.lower(),
+                name=[HumanName(use="official", family=last_name, given=[first_name])],
+                address=[Address(use="home", city=city, state=state)]
+            )
+            patient_json = fhir_patient.model_dump_json(indent=2)
         
         # 4. Stream the JSON file directly to AWS S3 (Standardized Layer)
             # S3 Key structure acts as our cloud file directory path
@@ -196,3 +187,77 @@ def generate_fhir_patients(context: AssetExecutionContext) -> str:
 
     context.log.info(f"Successfully serialized and uploaded {success_count} FHIR patient bundles to S3")
     return f"Uploaded {success_count} FHIR JSON objects to s3://{AWS_BUCKET_NAME}/standardized/fhir/patients/"
+
+@asset(deps=[s3_to_snowflake_raw],group_name ="fhir_standardization")
+def generate_fhir_encounter(context:AssetExecutionContext)->str:
+    """
+    Ste4: Extracts raw encounter records from snowflake, maps them to strict
+    HL7 FHIR R4 JSON structures, and saves them to AWS s3
+    """ 
+    #1. Connect to snowflake to read the raw inputs
+    with open(os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH"), "rb") as f:
+        private_key = load_pem_private_key(f.read(), password=None)
+    private_key_bytes = private_key.private_bytes(
+        encoding=Encoding.DER,
+        format=PrivateFormat.PKCS8,
+        encryption_algorithm=NoEncryption()
+    )
+
+    ctx = snowflake.connector.connect(
+        user=os.getenv("SNOWFLAKE_USER"),
+        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+        private_key=private_key_bytes,
+        database="CLINICAL_LAKEHOUSE",
+        schema="PUBLIC"
+    )
+    cs = ctx.cursor()
+
+    #Grab a smaple of 100 patients to test the transforamtion loop
+    context.log.info("Fetching raw encounter data from snowflake")
+    # Fetch core columns including the foreign key linking to the Patient
+    cs.execute('SELECT ID, "START", "STOP", PATIENT, ENCOUNTERCLASS, DESCRIPTION FROM raw.encounters LIMIT 100;')
+    rows = cs.fetchall()
+    cs.close()
+    ctx.close()
+
+    s3_client = boto3.client('s3')
+    success_count = 0
+
+    for row in rows:
+        enc_id, start_time, stop_time, patient_id, enc_class, description = row
+
+        try:
+            # Pass all fields at construction — Pydantic v2 validates on __init__
+            fhir_enc = Encounter(
+                id=str(enc_id),
+                status="finished",
+                class_fhir=[CodeableConcept(
+                    coding=[Coding(
+                        code=enc_class.lower(),
+                        system="http://terminology.hl7.org/CodeSystem/v3-ActCode"
+                    )]
+                )],
+                actualPeriod=Period(
+                    start=start_time.isoformat() + "+00:00" if start_time else None,
+                    end=stop_time.isoformat() + "+00:00" if stop_time else None
+                ),
+                subject=Reference(reference=f"Patient/{patient_id}")
+            )
+
+            s3_key = f"standardized/fhir/encounters/{enc_id}.json"
+            s3_client.put_object(
+                Bucket=AWS_BUCKET_NAME,
+                Key=s3_key,
+                Body=fhir_enc.model_dump_json(indent=2),
+                ContentType="application/json"
+            )
+            success_count += 1
+            
+        except Exception as e:
+            context.log.error(f"Failed to map encounter {enc_id}: {str(e)}")
+            continue
+
+    return f"Uploaded {success_count} FHIR Encounter JSON objects to S3."
+
+
+
