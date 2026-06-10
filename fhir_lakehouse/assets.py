@@ -2,9 +2,14 @@ import os
 import glob
 import boto3
 import snowflake.connector
+import json
+import io
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, Encoding, PrivateFormat, NoEncryption
 from dagster import asset, AssetExecutionContext
 from dotenv import load_dotenv
+from fhir.resources.patient import Patient
+from fhir.resources.humanname import HumanName
+from fhir.resources.address import Address
 
 # Load .env relative to this file so it works regardless of the working directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -108,3 +113,86 @@ def s3_to_snowflake_raw(context: AssetExecutionContext) -> str:
 
     context.log.info("All tables synced from S3 to Snowflake.")
     return f"Loaded {len(TABLE_SCHEMAS)} table(s) into Snowflake raw schema."
+
+@asset(deps=[s3_to_snowflake_raw],group_name = "fhir_standardization")
+def generate_fhir_patients(context: AssetExecutionContext) -> str:
+    """
+    Step3: Extracts raw database records from snowflake, maps them to strict
+    HL7 FHIR R4 JSON structures, and saves them to AWS s3
+    """ 
+    #1. Connect to snowflake to read the raw inputs
+    with open(os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH"), "rb") as f:
+        private_key = load_pem_private_key(f.read(), password=None)
+    private_key_bytes = private_key.private_bytes(
+        encoding=Encoding.DER,
+        format=PrivateFormat.PKCS8,
+        encryption_algorithm=NoEncryption()
+    )
+
+    ctx = snowflake.connector.connect(
+        user=os.getenv("SNOWFLAKE_USER"),
+        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+        private_key=private_key_bytes,
+        database="CLINICAL_LAKEHOUSE",
+        schema="PUBLIC"
+    )
+    cs = ctx.cursor()
+
+    #Grab a smaple of 100 patients to test the transforamtion loop
+    context.log.info("Fetching raw patient data from snowflake")
+    cs.execute("SELECT ID, FIRST, LAST, GENDER, BIRTHDATE, CITY, STATE FROM raw.patients LIMIT 100")
+    rows =cs.fetchall()
+    cs.close()
+    ctx.close()
+
+    #2. Initialize AWS s3 client to store our transformed data
+    s3_client = boto3.client('s3')
+    success_count = 0
+    context.log.info(f"Beginning FHIR R4 transformation loop for {len(rows)} patients...")
+
+    for row in rows:
+        p_id, first_name, last_name, gender, birthdate, city, state = row
+
+        try:
+            #3. Construct a strictly compliant FHIR patient resource using python models
+            fhir_patient= Patient()
+            fhir_patient.id = str(p_id)
+            # fhir_patient.resourceType = "Patient"
+            fhir_patient.active =True
+            fhir_patient.birthDate = birthdate.strftime("%Y-%m-%d")if birthdate else None
+            fhir_patient.gender = gender.lower()
+
+        #Construct complex nested human name
+            name = HumanName()
+            name.use = "official"
+            name.family = last_name
+            name.given = [first_name]
+            fhir_patient.name = [name]
+        
+        # Construct complex nested address
+            addr = Address()
+            addr.use = "home"
+            addr.city = city
+            addr.state = state
+            fhir_patient.address = [addr]
+        
+        # Convert the strict object into a standard Python Dictionary/JSON string
+            patient_json = fhir_patient.json(indent=2)
+        
+        # 4. Stream the JSON file directly to AWS S3 (Standardized Layer)
+            # S3 Key structure acts as our cloud file directory path
+            s3_key = f"standardized/fhir/patients/{p_id}.json"
+
+            s3_client.put_object(
+                Bucket=AWS_BUCKET_NAME,
+                Key=s3_key,
+                Body=patient_json,
+                ContentType="application/json"
+            )
+            success_count += 1
+        except Exception as e:
+            context.log.error (f"Failed to map patient {p_id} to FHIR: {str(e)}")
+            continue
+
+    context.log.info(f"Successfully serialized and uploaded {success_count} FHIR patient bundles to S3")
+    return f"Uploaded {success_count} FHIR JSON objects to s3://{AWS_BUCKET_NAME}/standardized/fhir/patients/"
