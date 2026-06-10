@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "fhir_lakehouse"
+version = "0.1.0"
+dependencies = [
+    "dagster",
+    "dagster-webserver",
+    "boto3",
+    "snowflake-connector-python",
+    "python-dotenv",
+]
+
+[tool.dagster]
+module_name = "fhir_lakehouse"
