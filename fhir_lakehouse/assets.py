@@ -15,6 +15,9 @@ from fhir.resources.period import Period
 from fhir.resources.coding import Coding
 from fhir.resources.codeableconcept import CodeableConcept
 from fhir.resources.reference import Reference
+from fhir.resources.medicationrequest import MedicationRequest
+from fhir.resources.codeablereference import CodeableReference
+from fhir.resources.condition import Condition
 
 # Load .env relative to this file so it works regardless of the working directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -259,5 +262,147 @@ def generate_fhir_encounter(context:AssetExecutionContext)->str:
 
     return f"Uploaded {success_count} FHIR Encounter JSON objects to S3."
 
+@asset(deps=[s3_to_snowflake_raw], group_name="fhir_standardization")
+def generate_fhir_medications(context: AssetExecutionContext) -> str:
+    """
+    Step 5: Extracts raw Medications from Snowflake, maps them
+    to HL7 FHIR R5 MedicationRequest JSON profiles, and streams them to S3.
+    """
+    with open(os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH"), "rb") as f:
+        private_key = load_pem_private_key(f.read(), password=None)
+    private_key_bytes = private_key.private_bytes(
+        encoding=Encoding.DER,
+        format=PrivateFormat.PKCS8,
+        encryption_algorithm=NoEncryption()
+    )
+
+    ctx = snowflake.connector.connect(
+        user=os.getenv("SNOWFLAKE_USER"),
+        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+        private_key=private_key_bytes,
+        database="CLINICAL_LAKEHOUSE",
+        schema="PUBLIC"
+    )
+    cs = ctx.cursor()
+
+    context.log.info("Fetching raw medications from Snowflake...")
+    cs.execute('SELECT "START", PATIENT, ENCOUNTER, CODE, DESCRIPTION FROM raw.medications LIMIT 100;')
+    rows = cs.fetchall()
+    cs.close()
+    ctx.close()
+
+    s3_client = boto3.client('s3')
+    success_count = 0
+
+    for row in rows:
+        start_time, patient_id, encounter_id, code, description = row
+
+        try:
+            unique_id = f"{patient_id}-{code}"
+            fhir_med = MedicationRequest(
+                id=unique_id,
+                status="active",
+                intent="order",
+                medication=CodeableReference(
+                    concept=CodeableConcept(
+                        coding=[Coding(
+                            system="http://www.nlm.nih.gov/research/umls/rxnorm",
+                            code=str(code),
+                            display=description
+                        )],
+                        text=description
+                    )
+                ),
+                subject=Reference(reference=f"Patient/{patient_id}"),
+                encounter=Reference(reference=f"Encounter/{encounter_id}") if encounter_id else None,
+                authoredOn=start_time.isoformat() if start_time else None
+            )
+
+            s3_key = f"standardized/fhir/medications/{unique_id}.json"
+            s3_client.put_object(
+                Bucket=AWS_BUCKET_NAME,
+                Key=s3_key,
+                Body=fhir_med.model_dump_json(indent=2),
+                ContentType="application/json"
+            )
+            success_count += 1
+
+        except Exception as e:
+            context.log.error(f"Failed to map medication for patient {patient_id}: {str(e)}")
+            continue
+
+    return f"Uploaded {success_count} FHIR MedicationRequest JSON objects to S3."
 
 
+@asset(deps=[s3_to_snowflake_raw], group_name="fhir_standardization")
+def generate_fhir_conditions(context: AssetExecutionContext) -> str:
+    """
+    Step 6: Extracts raw Conditions from Snowflake, maps them
+    to HL7 FHIR R5 Condition JSON profiles, and streams them to S3.
+    """
+    with open(os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH"), "rb") as f:
+        private_key = load_pem_private_key(f.read(), password=None)
+    private_key_bytes = private_key.private_bytes(
+        encoding=Encoding.DER,
+        format=PrivateFormat.PKCS8,
+        encryption_algorithm=NoEncryption()
+    )
+
+    ctx = snowflake.connector.connect(
+        user=os.getenv("SNOWFLAKE_USER"),
+        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+        private_key=private_key_bytes,
+        database="CLINICAL_LAKEHOUSE",
+        schema="PUBLIC"
+    )
+    cs = ctx.cursor()
+
+    context.log.info("Fetching raw conditions from Snowflake...")
+    cs.execute('SELECT "START", PATIENT, ENCOUNTER, CODE, DESCRIPTION FROM raw.conditions LIMIT 100;')
+    rows = cs.fetchall()
+    cs.close()
+    ctx.close()
+
+    s3_client = boto3.client('s3')
+    success_count = 0
+
+    for row in rows:
+        start_date, patient_id, encounter_id, code, description = row
+
+        try:
+            unique_id = f"{patient_id}-{code}"
+            fhir_cond = Condition(
+                id=unique_id,
+                clinicalStatus=CodeableConcept(
+                    coding=[Coding(
+                        system="http://terminology.hl7.org/CodeSystem/condition-clinical",
+                        code="active"
+                    )]
+                ),
+                code=CodeableConcept(
+                    coding=[Coding(
+                        system="http://snomed.info/sct",
+                        code=str(code),
+                        display=description
+                    )],
+                    text=description
+                ),
+                subject=Reference(reference=f"Patient/{patient_id}"),
+                encounter=Reference(reference=f"Encounter/{encounter_id}") if encounter_id else None,
+                onsetDateTime=start_date.isoformat() if start_date else None
+            )
+
+            s3_key = f"standardized/fhir/conditions/{unique_id}.json"
+            s3_client.put_object(
+                Bucket=AWS_BUCKET_NAME,
+                Key=s3_key,
+                Body=fhir_cond.model_dump_json(indent=2),
+                ContentType="application/json"
+            )
+            success_count += 1
+
+        except Exception as e:
+            context.log.error(f"Failed to map condition for patient {patient_id}: {str(e)}")
+            continue
+
+    return f"Uploaded {success_count} FHIR Condition JSON objects to S3."
