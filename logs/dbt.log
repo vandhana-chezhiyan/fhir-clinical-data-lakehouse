@@ -1,0 +1,73 @@
+[0m13:51:14.166910 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x110cc8670>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x111f2ef50>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1120083d0>]}
+
+
+============================== 13:51:14.169163 | 06ef66e8-14a7-46ee-9080-0490b6d4f11c ==============================
+[0m13:51:14.169163 [info ] [MainThread]: Running with dbt=1.11.11
+[0m13:51:14.169441 [debug] [MainThread]: running dbt with arguments {'fail_fast': 'False', 'profiles_dir': '/Users/vchez/.dbt', 'quiet': 'False', 'warn_error': 'None', 'printer_width': '80', 'partial_parse': 'True', 'log_format': 'default', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'send_anonymous_usage_stats': 'True', 'version_check': 'True', 'write_json': 'True', 'indirect_selection': 'eager', 'no_print': 'None', 'empty': 'None', 'target_path': 'None', 'cache_selected_only': 'False', 'log_path': 'logs', 'use_experimental_parser': 'False', 'debug': 'False', 'log_cache_events': 'False', 'static_parser': 'True', 'use_colors': 'True', 'introspect': 'True', 'invocation_command': 'dbt init fhir_analytics'}
+[0m13:51:14.177935 [info ] [MainThread]: Creating dbt configuration folder at /Users/vchez/.dbt
+[0m13:51:14.178908 [debug] [MainThread]: Starter project path: /Users/vchez/miniconda3/envs/vc_lake/lib/python3.10/site-packages/dbt/include/starter_project
+[0m13:51:14.181864 [info ] [MainThread]: 
+Your new dbt project "fhir_analytics" was created!
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m13:51:14.182041 [info ] [MainThread]: Setting up your profile.
+[0m13:52:55.955198 [debug] [MainThread]: Snowflake adapter: Setting snowflake.connector to ERROR (file logging only)
+[0m13:52:55.955549 [debug] [MainThread]: Snowflake adapter: Setting botocore to ERROR (file logging only)
+[0m13:52:55.955743 [debug] [MainThread]: Snowflake adapter: Setting boto3 to ERROR (file logging only)
+[0m13:56:46.766668 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10b130670>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10cd2ef50>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10ce083d0>]}
+
+
+============================== 13:56:46.768873 | a3caa708-1ef1-422b-8d51-c2b8edb383ec ==============================
+[0m13:56:46.768873 [info ] [MainThread]: Running with dbt=1.11.11
+[0m13:56:46.769135 [debug] [MainThread]: running dbt with arguments {'use_colors': 'True', 'write_json': 'True', 'fail_fast': 'False', 'log_cache_events': 'False', 'send_anonymous_usage_stats': 'True', 'empty': 'None', 'log_format': 'default', 'profiles_dir': '/Users/vchez/.dbt', 'no_print': 'None', 'invocation_command': 'dbt init fhir_analytics', 'use_experimental_parser': 'False', 'introspect': 'True', 'version_check': 'True', 'cache_selected_only': 'False', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'static_parser': 'True', 'indirect_selection': 'eager', 'printer_width': '80', 'warn_error': 'None', 'debug': 'False', 'log_path': 'logs', 'partial_parse': 'True', 'target_path': 'None', 'quiet': 'False'}
+[0m13:56:46.776288 [info ] [MainThread]: A project called fhir_analytics already exists here.
+[0m13:56:46.924247 [debug] [MainThread]: Resource report: {"command_name": "init", "command_success": true, "command_wall_clock_time": 0.18828608, "process_in_blocks": "0", "process_kernel_time": 0.07899, "process_mem_max_rss": "108396544", "process_out_blocks": "0", "process_user_time": 0.561799}
+[0m13:56:46.930874 [debug] [MainThread]: Command `dbt init` succeeded at 13:56:46.927682 after 0.19 seconds
+[0m13:56:46.931897 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10b130670>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10cd74640>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10ce0b4f0>]}
+[0m13:56:46.932218 [debug] [MainThread]: Flushing usage events
+[0m13:56:47.257387 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m13:58:15.370541 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1063c8700>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x107808550>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10780bbe0>]}
+
+
+============================== 13:58:15.373238 | 30702107-78ec-41c6-9ca0-06574ea6598b ==============================
+[0m13:58:15.373238 [info ] [MainThread]: Running with dbt=1.11.11
+[0m13:58:15.373532 [debug] [MainThread]: running dbt with arguments {'log_cache_events': 'False', 'use_experimental_parser': 'False', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'profiles_dir': '/Users/vchez/.dbt', 'static_parser': 'True', 'quiet': 'False', 'fail_fast': 'False', 'empty': 'None', 'no_print': 'None', 'write_json': 'True', 'invocation_command': 'dbt init fhir_analytics2', 'log_format': 'default', 'debug': 'False', 'send_anonymous_usage_stats': 'True', 'warn_error': 'None', 'cache_selected_only': 'False', 'version_check': 'True', 'partial_parse': 'True', 'printer_width': '80', 'indirect_selection': 'eager', 'use_colors': 'True', 'target_path': 'None', 'introspect': 'True', 'log_path': 'logs'}
+[0m13:58:15.381316 [debug] [MainThread]: Starter project path: /Users/vchez/miniconda3/envs/vc_lake/lib/python3.10/site-packages/dbt/include/starter_project
+[0m13:58:15.384019 [info ] [MainThread]: 
+Your new dbt project "fhir_analytics2" was created!
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m13:58:15.384189 [info ] [MainThread]: Setting up your profile.
+[0m13:58:20.237898 [debug] [MainThread]: Snowflake adapter: Setting snowflake.connector to ERROR (file logging only)
+[0m13:58:20.238600 [debug] [MainThread]: Snowflake adapter: Setting botocore to ERROR (file logging only)
+[0m13:58:20.238759 [debug] [MainThread]: Snowflake adapter: Setting boto3 to ERROR (file logging only)
+[0m14:00:41.429162 [info ] [MainThread]: Profile fhir_analytics2 written to /Users/vchez/.dbt/profiles.yml using target's profile_template.yml and your supplied values. Run 'dbt debug' to validate the connection.
+[0m14:00:41.436979 [debug] [MainThread]: Resource report: {"command_name": "init", "command_success": true, "command_wall_clock_time": 146.10004, "process_in_blocks": "0", "process_kernel_time": 0.11527, "process_mem_max_rss": "130170880", "process_out_blocks": "0", "process_user_time": 0.739756}
+[0m14:00:41.439111 [debug] [MainThread]: Command `dbt init` succeeded at 14:00:41.438825 after 146.10 seconds
+[0m14:00:41.439803 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1063c8700>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10772fac0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10780a8c0>]}
+[0m14:00:41.440296 [debug] [MainThread]: Flushing usage events
+[0m14:00:41.652212 [debug] [MainThread]: An error was encountered while trying to flush usage events

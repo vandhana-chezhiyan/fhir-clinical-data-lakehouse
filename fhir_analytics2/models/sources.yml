@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: staging
+    database: CLINICAL_LAKEHOUSE
+    schema: staging
+    tables:
+      - name: stg_fhir_patients
+      - name: stg_fhir_encounters
