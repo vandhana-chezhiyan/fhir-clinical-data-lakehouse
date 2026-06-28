@@ -7,3 +7,5 @@ sources:
     tables:
       - name: stg_fhir_patients
       - name: stg_fhir_encounters
+      - name: stg_fhir_medications
+      - name: stg_fhir_conditions
