@@ -9,3 +9,62 @@ sources:
       - name: stg_fhir_encounters
       - name: stg_fhir_medications
       - name: stg_fhir_conditions
+
+models:
+  - name: dim_patients
+    columns:
+      - name: patient_id
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_encounters
+    columns:
+      - name: encounter_id
+        tests:
+          - unique
+          - not_null
+      - name: patient_id
+        description: "Foreign key linking back to dim_patients."
+        tests:
+          - relationships:
+              to: ref('dim_patients')
+              field: patient_id
+
+  - name: dim_medications
+    columns:
+      - name: medication_id
+        tests:
+          - unique
+          - not_null
+      - name: patient_id
+        description: "Foreign key linking back to dim_patients."
+        tests:
+          - relationships:
+              to: ref('dim_patients')
+              field: patient_id
+      - name: encounter_id
+        description: "Foreign key linking back to dim_encounters."
+        tests:
+          - relationships:
+              to: ref('dim_encounters')
+              field: encounter_id
+
+  - name: dim_conditions
+    columns:
+      - name: condition_id
+        tests:
+          - unique
+          - not_null
+      - name: patient_id
+        description: "Foreign key linking back to dim_patients."
+        tests:
+          - relationships:
+              to: ref('dim_patients')
+              field: patient_id
+      - name: encounter_id
+        description: "Foreign key linking back to dim_encounters."
+        tests:
+          - relationships:
+              to: ref('dim_encounters')
+              field: encounter_id
